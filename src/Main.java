@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.DirectoryStream;
@@ -8,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -55,10 +57,11 @@ public class Main {
         Process p = Runtime.getRuntime().exec(command);
 
         BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        String s = "";
-        while ((s = in.readLine()) != null) {
-            System.out.println(s);
-        }
+        String s = "Analyze: " + apkPath;
+        // while ((s = in.readLine()) != null) {
+        System.out.println(s);
+        System.out.println("====================================");
+        // }
         int status = p.waitFor();
         if (status == 0) {
             checkForCordovaFiles(fileName);
@@ -80,59 +83,78 @@ public class Main {
         if (file.exists()) {
             isCordova = true;
         }
+        
+        String result = isCordova ? "Yes" : "No";
 
         System.out.println();
-        System.out.println("Cordova Application: " + isCordova);
-        
-        if(isCordova){
+        System.out.println("Cordova Application: " + result);
+        System.out.println();
+
+        if (isCordova) {
             checkWhetherEncrypted(dirPath);
         }
     }
 
     private static void checkWhetherEncrypted(String dirPath) {
-        System.out.println("Searching in " + dirPath + " ..." );
+        System.out.println("Searching in " + dirPath + " ...");
         ArrayList<String> fileList = (ArrayList<String>) getFileNames(new ArrayList<String>(), Paths.get(dirPath));
         System.out.println("Number of Encrypted html files: " + fileList.size());
-        
-        System.out.println("====Encrypted HTML Files====");
-        
-        for(String fileName : fileList){
-            System.out.println(fileName);
+
+        if (fileList.size() > 0) {
+            System.out.println("====Encrypted HTML Files====");
+
+            for (String fileName : fileList) {
+                System.out.println(fileName);
+            }
         }
     }
 
     private static List<String> getFileNames(List<String> fileNames, Path dir) {
-        try(DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
             for (Path path : stream) {
-                if(path.toFile().isDirectory()) {
+                if (path.toFile().isDirectory()) {
                     getFileNames(fileNames, path);
                 } else {
                     String fileName = path.getFileName().toString();
-                    if(fileName.endsWith(".html") || fileName.endsWith(".htm")){                      
-                        if(isFileEncrypted(path)){
+                    if (fileName.endsWith(".html") || fileName.endsWith(".htm")) {
+                        if (isFileEncrypted(path)) {
                             fileNames.add(path.toAbsolutePath().toString());
-                        }     
+                        }
                     }
                 }
             }
-        } catch(IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
         return fileNames;
     }
-    
-    private static boolean isFileEncrypted(Path path) {
-        Document initialDoc;
-        try {
-            initialDoc = Jsoup.parse(new File(path.toString()), "UTF-8", "");
 
-            Jsoup.connect("http://validator.w3.org/check")
-                    .data("fragment", initialDoc.html())
-                    .data("st", "1")
-                    .post();
-        } catch (IOException e) {
+    private static boolean isFileEncrypted(Path path) {
+        Pattern htmlPattern = Pattern.compile(".*\\<[^>]+>.*", Pattern.DOTALL);
+        boolean isHTML = htmlPattern.matcher(usingBufferedReader(path.toString())).matches();
+        if (isHTML) {
             return false;
+        } else {
+            File file = new File(path.toString());
+            boolean empty = file.length() == 0;
+            if (empty) {
+                return false;
+            }
+            return true;
         }
-        return true;
+    }
+
+    private static String usingBufferedReader(String filePath) {
+        StringBuilder contentBuilder = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+
+            String sCurrentLine;
+            while ((sCurrentLine = br.readLine()) != null) {
+                contentBuilder.append(sCurrentLine).append("\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return contentBuilder.toString();
     }
 }
