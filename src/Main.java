@@ -75,15 +75,16 @@ public class Main {
     private static void checkForCordovaFiles(String folderName) {
         String currentDir = new File(".").getAbsolutePath();
         currentDir = currentDir.substring(0, currentDir.length() - 1);
-        String dirPath = currentDir + folderName + "\\assets\\www";
+        String dirPath = currentDir + folderName + "\\assets";
 
-        File file = new File(dirPath + "\\cordova.js");
+        // File file = new File(dirPath + "\\cordova.js");
 
         boolean isCordova = false;
-        if (file.exists()) {
+        // if (file.exists()) {
+        if (!searchCordovaJSFile(new ArrayList<String>(), Paths.get(dirPath)).isEmpty()) {
             isCordova = true;
         }
-        
+
         String result = isCordova ? "Yes" : "No";
 
         System.out.println();
@@ -98,15 +99,37 @@ public class Main {
     private static void checkWhetherEncrypted(String dirPath) {
         System.out.println("Searching in " + dirPath + " ...");
         ArrayList<String> fileList = (ArrayList<String>) getFileNames(new ArrayList<String>(), Paths.get(dirPath));
-        System.out.println("Number of Encrypted html files: " + fileList.size());
+        System.out.println("Number of Encrypted/Invalid html files: " + fileList.size());
 
         if (fileList.size() > 0) {
-            System.out.println("====Encrypted HTML Files====");
+            System.out.println("====Encrypted or Invalid HTML Files====");
 
             for (String fileName : fileList) {
                 System.out.println(fileName);
             }
         }
+    }
+
+    private static List<String> searchCordovaJSFile(List<String> fileNames, Path dir) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+            for (Path path : stream) {
+                if (path.toFile().isDirectory()) {
+                    searchCordovaJSFile(fileNames, path);
+                } else {
+                    String fileName = path.getFileName().toString();
+                    Pattern cordovaJS = Pattern.compile("^cordova.*\\.js$", Pattern.DOTALL);
+                    Pattern cordovaFrontJS = Pattern.compile(".*.cordova.*\\.js$", Pattern.DOTALL);
+                    Pattern phonegapJS = Pattern.compile("^phonegap.*\\.js$", Pattern.DOTALL);
+
+                    if (cordovaJS.matcher(fileName).matches() || phonegapJS.matcher(fileName).matches() || cordovaFrontJS.matcher(fileName).matches()) {
+                        fileNames.add(path.toAbsolutePath().toString());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return fileNames;
     }
 
     private static List<String> getFileNames(List<String> fileNames, Path dir) {
