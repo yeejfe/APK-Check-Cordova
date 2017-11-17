@@ -2,7 +2,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,9 +9,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
-
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 
 public class Main {
     private static String codePath = new File(".").getAbsolutePath();
@@ -56,9 +52,10 @@ public class Main {
 
         Process p = Runtime.getRuntime().exec(command);
 
-        BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
+        //BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
         String s = "Analyze: " + apkPath;
         // while ((s = in.readLine()) != null) {
+        System.out.println("====================================");
         System.out.println(s);
         System.out.println("====================================");
         // }
@@ -75,21 +72,32 @@ public class Main {
     private static void checkForCordovaFiles(String folderName) {
         String currentDir = new File(".").getAbsolutePath();
         currentDir = currentDir.substring(0, currentDir.length() - 1);
-        String dirPath = currentDir + folderName + "\\assets";
+        String dirCurrPath = currentDir + folderName;
+        String dirAssetsPath = currentDir + folderName + "\\assets";
 
-        // File file = new File(dirPath + "\\cordova.js");
+        String dirPath;
+        File dir = new File(dirAssetsPath);
+        if (dir.exists()) {
+            dirPath = dirAssetsPath;
+        } else {
+            dirPath = dirCurrPath;
+        }
 
         boolean isCordova = false;
-        // if (file.exists()) {
         if (!searchCordovaJSFile(new ArrayList<String>(), Paths.get(dirPath)).isEmpty()) {
             isCordova = true;
+        }
+        if (isCordova == false && dirPath != dirCurrPath) {
+            dirPath = dirCurrPath;
+            if (!searchCordovaJSFile(new ArrayList<String>(), Paths.get(dirPath)).isEmpty()) {
+                isCordova = true;
+            }
         }
 
         String result = isCordova ? "Yes" : "No";
 
         System.out.println();
         System.out.println("Cordova Application: " + result);
-        System.out.println();
 
         if (isCordova) {
             checkWhetherEncrypted(dirPath);
@@ -99,7 +107,7 @@ public class Main {
     private static void checkWhetherEncrypted(String dirPath) {
         System.out.println("Searching in " + dirPath + " ...");
         ArrayList<String> fileList = (ArrayList<String>) getFileNames(new ArrayList<String>(), Paths.get(dirPath));
-        System.out.println("Number of Encrypted/Invalid html files: " + fileList.size());
+        System.out.println("Number of Encrypted\\Invalid html files: " + fileList.size());
 
         if (fileList.size() > 0) {
             System.out.println("====Encrypted or Invalid HTML Files====");
@@ -120,9 +128,13 @@ public class Main {
                     Pattern cordovaJS = Pattern.compile("^cordova.*\\.js$", Pattern.DOTALL);
                     Pattern cordovaFrontJS = Pattern.compile(".*.cordova.*\\.js$", Pattern.DOTALL);
                     Pattern phonegapJS = Pattern.compile("^phonegap.*\\.js$", Pattern.DOTALL);
+                    Pattern phonegapFrontJS = Pattern.compile(".*.phonegap.*\\.js$", Pattern.DOTALL);
 
-                    if (cordovaJS.matcher(fileName).matches() || phonegapJS.matcher(fileName).matches() || cordovaFrontJS.matcher(fileName).matches()) {
+                    if (cordovaJS.matcher(fileName).matches() || phonegapJS.matcher(fileName).matches()
+                            || cordovaFrontJS.matcher(fileName).matches()
+                            || phonegapFrontJS.matcher(fileName).matches()) {
                         fileNames.add(path.toAbsolutePath().toString());
+                        return fileNames;
                     }
                 }
             }
